@@ -1,20 +1,20 @@
 package build
 
-import "core:strings"
+import "base:runtime"
+import "core:encoding/json"
+import "core:fmt"
 import "core:os"
 import "core:path/filepath"
-import "core:sync"
-import "core:encoding/json"
-import "core:runtime"
-import "core:fmt"
 import "core:slice"
-import "core:unicode/utf8"
-import "core:unicode"
 import "core:strconv"
+import "core:strings"
+import "core:sync"
+import "core:unicode"
+import "core:unicode/utf8"
 
 Project :: struct {
-	name: string,
-	targets: [dynamic]^Target,
+	name:          string,
+	targets:       [dynamic]^Target,
 	target_prefix: string,
 }
 
@@ -26,24 +26,33 @@ Run_Mode :: enum {
 
 mode_strings := [Run_Mode]string {
 	.Build = "[Build]",
-	.Help = "[Help]",
-	.Dev = "[Dev]",
+	.Help  = "[Help]",
+	.Dev   = "[Dev]",
 }
 
 Target :: struct {
-	name: string,
+	name:     string,
 	platform: Platform,
-
 	run_proc: Target_Run_Proc,
-
-	project: ^Project,
+	project:  ^Project,
 	root_dir: string,
 }
 
-Target_Run_Proc :: #type proc(target: ^Target, mode: Run_Mode, args: []Arg, loc := #caller_location) -> bool
+Target_Run_Proc :: #type proc(
+	target: ^Target,
+	mode: Run_Mode,
+	args: []Arg,
+	loc := #caller_location,
+) -> bool
 
-add_target :: proc(project: ^Project, target: ^Target, run_proc: Target_Run_Proc, subdir_count := 1, loc := #caller_location) {
-	assert(subdir_count >=  1, "The build system needs to be in a subdirectory")
+add_target :: proc(
+	project: ^Project,
+	target: ^Target,
+	run_proc: Target_Run_Proc,
+	subdir_count := 1,
+	loc := #caller_location,
+) {
+	assert(subdir_count >= 1, "The build system needs to be in a subdirectory")
 	append(&project.targets, target)
 	target.project = project
 	target.run_proc = run_proc
@@ -67,7 +76,13 @@ run_target :: proc(target: ^Target, mode: Run_Mode, args: []Arg, loc := #caller_
 }
 
 // Returns a path relative to the target root dir. Tries to return the shortest relative path before returning the absolute path
-relpath :: proc(target: ^Target, path: string, allocator := context.allocator) -> (result: string) {
+relpath :: proc(
+	target: ^Target,
+	path: string,
+	allocator := context.allocator,
+) -> (
+	result: string,
+) {
 	is_temp_allocator := allocator == context.temp_allocator
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD(ignore = is_temp_allocator)
 	absolute_path := filepath.join({target.root_dir, path}, context.temp_allocator)
@@ -76,7 +91,13 @@ relpath :: proc(target: ^Target, path: string, allocator := context.allocator) -
 	return strings.clone(result, allocator) if !is_temp_allocator else result
 }
 
-abspath :: proc(target: ^Target, path: string, allocator := context.allocator) -> (result: string) {
+abspath :: proc(
+	target: ^Target,
+	path: string,
+	allocator := context.allocator,
+) -> (
+	result: string,
+) {
 	return filepath.join({target.root_dir, path}, allocator)
 }
 

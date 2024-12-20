@@ -1,10 +1,10 @@
 package build
 
-import "core:strings"
-import "core:os"
+import "base:runtime"
 import "core:fmt"
+import "core:os"
 import "core:slice"
-import "core:runtime"
+import "core:strings"
 
 Build_Mode :: enum {
 	EXE,
@@ -24,7 +24,7 @@ Define_Val :: union #no_nil {
 
 Define :: struct {
 	name: string,
-	val: Define_Val,
+	val:  Define_Val,
 }
 
 
@@ -34,7 +34,7 @@ Platform_ABI :: enum {
 }
 
 Platform :: struct {
-	os: runtime.Odin_OS_Type,
+	os:   runtime.Odin_OS_Type,
 	arch: runtime.Odin_Arch_Type,
 }
 
@@ -55,7 +55,7 @@ Subsystem_Kind :: enum {
 }
 
 Style_Mode :: enum {
-	None, 
+	None,
 	Strict,
 	Strict_Init_Only,
 }
@@ -96,12 +96,10 @@ Compiler_Flag :: enum {
 	Warnings_As_Errors,
 	Terse_Errors,
 	//
-
 	Foreign_Error_Procedures,
 	Ignore_Vs_Search,
 	No_Entry_Point,
 	Show_System_Calls,
-
 	No_RTTI,
 }
 
@@ -135,8 +133,8 @@ Timings_Format :: enum {
 
 //TODO
 Timings_Export :: struct {
-	mode: Timings_Mode,
-	format: Timings_Format,
+	mode:     Timings_Mode,
+	format:   Timings_Format,
 	filename: Maybe(string),
 }
 
@@ -146,25 +144,25 @@ Odin_Command_Type :: enum {
 }
 
 Odin_Config :: struct {
-	platform: Platform,
-	abi: Platform_ABI, // Only makes sense for freestanding
-	src_path: string,
-	out_dir: string,
-	out_file: string,
-	pdb_name: string,
-	rc_path: string,
-	subsystem: Subsystem_Kind,
+	platform:     Platform,
+	abi:          Platform_ABI, // Only makes sense for freestanding
+	src_path:     string,
+	out_dir:      string,
+	out_file:     string,
+	pdb_name:     string,
+	rc_path:      string,
+	subsystem:    Subsystem_Kind,
 	thread_count: int,
-	build_mode: Build_Mode,
-	flags: Compiler_Flags,
-	opt: Opt_Mode,
-	vet: Vet_Flags,
-	style: Style_Mode,
-	reloc: Reloc_Mode,
-	sanitize: Sanitize_Flags,
-	timings: Timings_Export,
-	defines: []Define,
-	collections: []Collection,
+	build_mode:   Build_Mode,
+	flags:        Compiler_Flags,
+	opt:          Opt_Mode,
+	vet:          Vet_Flags,
+	style:        Style_Mode,
+	reloc:        Reloc_Mode,
+	sanitize:     Sanitize_Flags,
+	timings:      Timings_Export,
+	defines:      []Define,
+	collections:  []Collection,
 }
 
 split_odin_args :: proc(args: string, allocator := context.allocator) -> []string {
@@ -183,13 +181,15 @@ build_odin_args :: proc(config: Odin_Config, allocator := context.allocator) -> 
 
 	if config.platform.os == .Windows {
 		if config.pdb_name != "" do fmt.sbprintf(&sb, ` -pdb-name:"%s"`, config.pdb_name)
-		if config.rc_path != ""  do fmt.sbprintf(&sb, ` -resource:"%s"`, config.rc_path)
+		if config.rc_path != "" do fmt.sbprintf(&sb, ` -resource:"%s"`, config.rc_path)
 		switch config.subsystem {
-		case .Console: strings.write_string(&sb, " -subsystem:console")
-		case .Windows: strings.write_string(&sb, " -subsystem:windows")
+		case .Console:
+			strings.write_string(&sb, " -subsystem:console")
+		case .Windows:
+			strings.write_string(&sb, " -subsystem:windows")
 		}
 	}
-	
+
 	insert_space(&sb)
 	strings.write_string(&sb, _build_mode_to_arg[config.build_mode])
 
@@ -220,16 +220,30 @@ build_odin_args :: proc(config: Odin_Config, allocator := context.allocator) -> 
 	}
 	for define in config.defines {
 		switch val in define.val {
-		case string: fmt.sbprintf(&sb, " -define:%s=\"%s\"", define.name, val)
-		case bool:   fmt.sbprintf(&sb, " -define:%s=%s", define.name, "true" if val else "false")
-		case int:    fmt.sbprintf(&sb, " -define:%s=%d", define.name, val)
+		case string:
+			fmt.sbprintf(&sb, " -define:%s=\"%s\"", define.name, val)
+		case bool:
+			fmt.sbprintf(&sb, " -define:%s=%s", define.name, "true" if val else "false")
+		case int:
+			fmt.sbprintf(&sb, " -define:%s=%d", define.name, val)
 		}
 	}
-	
+
 	if config.abi == .Default {
-		fmt.sbprintf(&sb, " -target:%s_%s", _os_to_arg[config.platform.os], _arch_to_arg[config.platform.arch])
+		fmt.sbprintf(
+			&sb,
+			" -target:%s_%s",
+			_os_to_arg[config.platform.os],
+			_arch_to_arg[config.platform.arch],
+		)
 	} else {
-		fmt.sbprintf(&sb, " -target:%s_%s_%s", _os_to_arg[config.platform.os], _arch_to_arg[config.platform.arch], _abi_to_arg[config.abi])
+		fmt.sbprintf(
+			&sb,
+			" -target:%s_%s_%s",
+			_os_to_arg[config.platform.os],
+			_arch_to_arg[config.platform.arch],
+			_abi_to_arg[config.abi],
+		)
 	}
 
 	if config.thread_count > 0 {
@@ -245,14 +259,23 @@ build_odin_args :: proc(config: Odin_Config, allocator := context.allocator) -> 
 
 
 // Runs the odin compiler. If target is not nil, use target.root_dir for configuring paths
-odin :: proc(target: ^Target, command_type: Odin_Command_Type, config: Odin_Config, print_command := true, loc := #caller_location) -> bool {
+odin :: proc(
+	target: ^Target,
+	command_type: Odin_Command_Type,
+	config: Odin_Config,
+	print_command := true,
+	loc := #caller_location,
+) -> bool {
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
 	config := config
 	cmd: string
 	switch command_type {
-	case .Check: cmd = "check"
-	case .Build: cmd = "build"
-	case: panic("Invalid command_type")
+	case .Check:
+		cmd = "check"
+	case .Build:
+		cmd = "build"
+	case:
+		panic("Invalid command_type")
 	}
 	make_directory(config.out_dir)
 	args_str := build_odin_args(config, context.temp_allocator)
@@ -260,12 +283,12 @@ odin :: proc(target: ^Target, command_type: Odin_Command_Type, config: Odin_Conf
 	args := split_odin_args(args_str, context.temp_allocator)
 	if print_command {
 		fmt.printf("odin %s \"%s\"\n", cmd, config.src_path)
-		for arg in args[2:] { // args[0] is cmd, arg[1] is package
+		for arg in args[2:] { 	// args[0] is cmd, arg[1] is package
 			fmt.printf("\t%s\n", arg)
 		}
 	}
 
 	ret := exec("odin", args)
-	
+
 	return ret == 0
 }

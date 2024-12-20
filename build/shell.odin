@@ -1,12 +1,12 @@
 package build
 
-import "core:unicode/utf8"
-import "core:runtime"
-import "core:os"
-import "core:fmt"
-import "core:strings"
+import "base:runtime"
 import "core:encoding/json"
+import "core:fmt"
+import "core:os"
 import "core:path/filepath"
+import "core:strings"
+import "core:unicode/utf8"
 
 import "core:c/libc"
 
@@ -16,7 +16,7 @@ make_directory :: proc(name: string) {
 	slash_dir, _ := filepath.to_slash(name, context.temp_allocator)
 	dirs := strings.split_after(slash_dir, "/", context.temp_allocator)
 	for _, i in dirs {
-		new_dir := strings.concatenate(dirs[0 : i + 1], context.temp_allocator)
+		new_dir := strings.concatenate(dirs[0:i + 1], context.temp_allocator)
 		os.make_directory(new_dir)
 	}
 }

@@ -1,19 +1,17 @@
 package build
 
-import "core:unicode/utf8"
-import "core:runtime"
-import "core:os"
-import "core:fmt"
-import "core:strings"
+import "base:runtime"
 import "core:encoding/json"
+import "core:fmt"
+import "core:os"
 import "core:path/filepath"
 import "core:slice"
-
+import "core:strings"
+import "core:unicode/utf8"
 
 
 S_IRUSR :: 0x0400
 S_IWUSR :: 0x0200
-
 
 
 Collection :: struct {
@@ -29,7 +27,7 @@ Language_Server_Option :: enum {
 
 Language_Server_Options :: bit_set[Language_Server_Option]
 
-DEFAULT_OLS_OPTIONS :: Language_Server_Options{
+DEFAULT_OLS_OPTIONS :: Language_Server_Options {
 	.Document_Symbols,
 	.Semantic_Tokens,
 	.Hover,
@@ -38,17 +36,17 @@ DEFAULT_OLS_OPTIONS :: Language_Server_Options{
 
 Language_Server_Settings :: struct {
 	enable_document_symbols: bool,
-	enable_semantic_tokens: bool,
-	enable_hover: bool,
+	enable_semantic_tokens:  bool,
+	enable_hover:            bool,
 }
 
 Ols_Json :: struct {
-	collections: [dynamic]Collection,
+	collections:             [dynamic]Collection,
 	enable_document_symbols: bool,
-	enable_semantic_tokens: bool,
-	enable_hover: bool, 
-	enable_snippets: bool,
-	checker_args: string,
+	enable_semantic_tokens:  bool,
+	enable_hover:            bool,
+	enable_snippets:         bool,
+	checker_args:            string,
 }
 
 
@@ -70,11 +68,11 @@ Odin_Dev_Flag :: enum {
 Odin_Dev_Flags :: bit_set[Odin_Dev_Flag]
 
 Default_Dev_Opts :: struct {
-	flags: Odin_Dev_Flags,
-	editors: Editors,
-	launch_args: string,
-	custom_cwd: string,
-	debugger_type: string,
+	flags:             Odin_Dev_Flags,
+	editors:           Editors,
+	launch_args:       string,
+	custom_cwd:        string,
+	debugger_type:     string,
 	build_system_args: string,
 }
 
@@ -104,7 +102,14 @@ parse_default_devenv_args :: proc(args: []Arg) -> (opts: Default_Dev_Opts) {
 	return opts
 }
 
-build_ols_json :: proc(config: Odin_Config, opts: Language_Server_Options, allocator := context.allocator) -> ([]u8, json.Marshal_Error) {
+build_ols_json :: proc(
+	config: Odin_Config,
+	opts: Language_Server_Options,
+	allocator := context.allocator,
+) -> (
+	[]u8,
+	json.Marshal_Error,
+) {
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD(ignore = allocator == context.temp_allocator) // Note(Dragos): Fix issues with this
 	ols_json: Ols_Json
 	ols_json.collections = make([dynamic]Collection, context.temp_allocator)
@@ -124,32 +129,40 @@ build_ols_json :: proc(config: Odin_Config, opts: Language_Server_Options, alloc
 
 
 VSCode_Config_Json :: struct {
-	type: string,
-	request: string,
+	type:          string,
+	request:       string,
 	preLaunchTask: string,
-	name: string,
-	program: string,
-	args: []string,
-	cwd: string,
+	name:          string,
+	program:       string,
+	args:          []string,
+	cwd:           string,
 }
 
 VSCode_Launch_Json :: struct {
-	version: string,
+	version:        string,
 	configurations: [dynamic]VSCode_Config_Json,
 }
 
 VSCode_Task_Json :: struct {
-	label: string,
-	type: string,
+	label:   string,
+	type:    string,
 	command: string,
 }
 
 VSCode_Tasks_Json :: struct {
 	version: string,
-	tasks: [dynamic]VSCode_Task_Json,
+	tasks:   [dynamic]VSCode_Task_Json,
 }
 
-build_vscode_json :: proc(target: ^Target, config: Odin_Config, opts: Default_Dev_Opts, allocator := context.allocator) -> (launch_data, tasks_data: []u8, err: json.Marshal_Error) {
+build_vscode_json :: proc(
+	target: ^Target,
+	config: Odin_Config,
+	opts: Default_Dev_Opts,
+	allocator := context.allocator,
+) -> (
+	launch_data, tasks_data: []u8,
+	err: json.Marshal_Error,
+) {
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD(ignore = allocator == context.temp_allocator)
 
 	launch_json: VSCode_Launch_Json
@@ -164,13 +177,16 @@ build_vscode_json :: proc(target: ^Target, config: Odin_Config, opts: Default_De
 	if .Cwd_Workspace in opts.flags do debug_config_json.cwd = "${workspaceFolder}/"
 	debug_config_json.args = strings.split(opts.launch_args, " ", context.temp_allocator) // Note(Dragos): Is this correct?
 	debug_config_json.name = target.name
-	debug_config_json.program = filepath.join({target.root_dir, config.out_dir, config.out_file}, context.temp_allocator)
+	debug_config_json.program = filepath.join(
+		{target.root_dir, config.out_dir, config.out_file},
+		context.temp_allocator,
+	)
 
 	append(&launch_json.configurations, debug_config_json)
 
 	tasks_json: VSCode_Tasks_Json
 	tasks_json.version = "2.0.0"
-	
+
 	marshal_opts: json.Marshal_Options
 	marshal_opts.pretty = true
 	launch_data = json.marshal(launch_json, marshal_opts, allocator) or_return
@@ -178,16 +194,29 @@ build_vscode_json :: proc(target: ^Target, config: Odin_Config, opts: Default_De
 	return launch_data, tasks_data, nil
 }
 
-generate_odin_devenv :: proc(target: ^Target, odin_config: Odin_Config, args: []Arg, loc := #caller_location) -> bool {
+generate_odin_devenv :: proc(
+	target: ^Target,
+	odin_config: Odin_Config,
+	args: []Arg,
+	loc := #caller_location,
+) -> bool {
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
 	opts := parse_default_devenv_args(args)
 	if opts.custom_cwd == "" && .Cwd_Out not_in opts.flags && .Cwd_Workspace not_in opts.flags {
 		opts.flags += {.Cwd_Out} // Default cwd
 	}
 	if .Generate_Ols in opts.flags {
-		ols_json, json_err := build_ols_json(odin_config, DEFAULT_OLS_OPTIONS, context.temp_allocator)
+		ols_json, json_err := build_ols_json(
+			odin_config,
+			DEFAULT_OLS_OPTIONS,
+			context.temp_allocator,
+		)
 		if json_err != nil {
-			fmt.eprintf("Failed to generate ols settings for target %s: %s\n", target.name, json_err)
+			fmt.eprintf(
+				"Failed to generate ols settings for target %s: %s\n",
+				target.name,
+				json_err,
+			)
 			return false
 		}
 		ols_path := fmt.tprintf("%s/ols.json", target.root_dir) // Todo(Dragos): Fix this shit already
@@ -199,7 +228,7 @@ generate_odin_devenv :: proc(target: ^Target, odin_config: Odin_Config, args: []
 
 	for editor in Editor do if editor in opts.editors {
 		switch editor {
-		case .VSCode: 
+		case .VSCode:
 			launch, tasks, json_err := build_vscode_json(target, odin_config, opts, context.temp_allocator)
 			if json_err != nil {
 				fmt.eprintf("Failed to generate vscode settings for target %s: %s\n", target.name, json_err)
@@ -219,6 +248,6 @@ generate_odin_devenv :: proc(target: ^Target, odin_config: Odin_Config, args: []
 			}
 		}
 	}
-	
+
 	return true
 }

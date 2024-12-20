@@ -1,6 +1,6 @@
 package build
 
-import "core:runtime"
+import "base:runtime"
 
 DEFAULT_VET :: Vet_Flags{.Unused, .Shadowing, .Using_Stmt}
 
